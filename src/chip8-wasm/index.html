@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <style>
+      body {
+	  background: #222233;
+	  display: flex;
+	  flex-flow: row nowrap;
+	  justify-content: center;
+	  align-items: center;
+	  height: 100vh;
+	  margin: 0;
+	  padding: 0;
+      }
+      #display {
+        width: 640px;
+        image-rendering: pixelated;
+        image-rendering: crisp-edges;
+      }
+    </style>
+    <script type="module">
+      import {
+        reset,
+        tick,
+        decDelayTimer,
+        decSoundTimer,
+        getDisplayBitmap,
+        keyUp,
+        keyDown,
+        loadRom,
+        setVBlank,
+      } from "./build/release.js";
+      const CPU_SPEED = 700;
+      const SIXTY_HZ_MS = 1000 / 60;
+      const KEYS = new Map([
+        ["Digit1", 0x1],
+        ["Digit2", 0x2],
+        ["Digit3", 0x3],
+        ["Digit4", 0xc],
+        ["KeyQ", 0x4],
+        ["KeyW", 0x5],
+        ["KeyE", 0x6],
+        ["KeyR", 0xd],
+        ["KeyA", 0x7],
+        ["KeyS", 0x8],
+        ["KeyD", 0x9],
+        ["KeyF", 0xe],
+        ["KeyZ", 0xa],
+        ["KeyX", 0x0],
+        ["KeyC", 0xb],
+        ["KeyV", 0xf],
+      ]);
+      let IDLE = false
+      let AUDIO_ACTIVE = false
+      let audio
+      const initAudio = () => {
+        const audioCtx = new AudioContext()
+        const oscillator = new OscillatorNode(audioCtx, { type: 'triangle'})
+        const gainNode = new GainNode(audioCtx)
+        oscillator.connect(gainNode)
+        oscillator.start()
+        gainNode.gain.value = 0.01
+        let started = false
+	audio = {
+	  start: () => {
+            if (!started) {
+              gainNode.connect(audioCtx.destination)
+	      started = true
+	    }
+	  },
+	  stop: () => {
+            if (started) {
+              gainNode.disconnect(audioCtx.destination)
+	      started = false
+            }
+	  }
+	}
+      }
+
+      const canvas = document.getElementById("display");
+      if (!(canvas instanceof HTMLCanvasElement)) {
+        throw new Error("Missing canvas");
+      }
+      const ctx = canvas.getContext("2d");
+      if (!(ctx instanceof CanvasRenderingContext2D)) {
+        throw new Error("Failed to retrieve canvas context");
+      }
+      ctx.imageSmoothingEnabled = false;
+
+      let previousTimestamp;
+      let elapsed = 0;
+      const loop = (timestamp) => {
+        if (previousTimestamp !== undefined) {
+          const delta = timestamp - previousTimestamp;
+          elapsed += delta;
+        }
+        previousTimestamp = timestamp;
+
+        if (elapsed >= SIXTY_HZ_MS) {
+          for (let i = 0; i < Math.floor(elapsed / SIXTY_HZ_MS); i++) {
+	    if (!IDLE) {
+              let nCycles = Math.round(CPU_SPEED / 60);
+              for (let i = 0; i < nCycles; i++) {
+                IDLE = tick();
+	        if (IDLE) break
+              }
+	    }
+	      
+            decDelayTimer();
+	    const st = decSoundTimer()
+            if (audio !== undefined) {
+              st > 0 ? audio.start() : audio.stop()
+	    }
+            setVBlank();
+          }
+          elapsed %= SIXTY_HZ_MS;
+        }
+	  
+        ctx.putImageData(new ImageData(getDisplayBitmap(), 64), 0, 0);
+
+        window.requestAnimationFrame(loop);
+      };
+
+      fetch("deep8.ch8")
+        .then((resp) => resp.blob())
+        .then((blob) => blob.arrayBuffer())
+        .then((data) => {
+          reset();
+          loadRom(new Uint8Array(data));
+          document.addEventListener("keydown", (e) => {
+	    if (!AUDIO_ACTIVE) {
+              initAudio()
+	      AUDIO_ACTIVE = true
+            }
+            const key = KEYS.get(e.code);
+            if (key !== undefined && !e.repeat) {
+              keyDown(key);
+            }
+          });
+          document.addEventListener("keyup", (e) => {
+            const key = KEYS.get(e.code);
+            if (key !== undefined) {
+              keyUp(key);
+            }
+          });
+          window.requestAnimationFrame(loop);
+        });
+    </script>
+  </head>
+  <body>
+    <canvas id="display" width="64" height="32" />
+  </body>
+</html>

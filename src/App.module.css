@@ -1,0 +1,133 @@
+.App {
+  text-align: center;
+  background: #222233;
+  display: flex;
+  flex-flow: column nowrap;
+  justify-content: flex-start;
+  align-items: flex-start;
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+}
+
+.header {
+  display: flex;
+  flex-flow: row nowrap;
+  justify-content: flex-start;
+  align-items: center;
+  height: 2rem;
+  width: 100%;
+  background: #111122;
+}
+
+.body {
+  display: flex;
+  flex-flow: row nowrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-grow: 1;
+}
+
+.editor {
+  flex-grow: 1;
+  height: calc(100vh - 2rem);
+  width: 50vw;
+  background: #000001;
+  display: flex;
+  flex-flow: row nowrap;
+  justify-content: flex-start;
+  align-items: flex-start;
+  font-family: monospace;
+  outline: none;
+  overflow-y: scroll;
+
+  & .margin {
+    padding: 0 1rem;
+    min-height: 100%;
+    background: #111111;
+    color: #777;
+
+    & .line {
+      height: 1.3rem;
+      display: flex;
+      flex-flow: row nowrap;
+      justify-content: center;
+      align-items: center;
+
+      &.active {
+        color: white;
+      }
+    }
+  }
+
+  & .content {
+    flex-grow: 1;
+    height: 100%;
+
+    & .line {
+      height: 1.3rem;
+      padding-left: 1rem;
+      display: flex;
+      flex-flow: row nowrap;
+      justify-content: flex-start;
+      align-items: center;
+      color: #ddd;
+
+      &.active {
+        background: #0a0a0a;
+      }
+    }
+
+    & .mnemonic {
+      margin-left: 2rem;
+      color: #666;
+    }
+  }
+}
+
+.rightPanel {
+  flex-grow: 1;
+  display: flex;
+  flex-flow: column nowrap;
+  justify-content: flex-start;
+  align-items: center;
+  width: 50vw;
+  height: calc(100vh - 2rem);
+}
+
+.display {
+  padding: 1rem;
+
+  & canvas {
+    width: 640px;
+    background: black;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+  }
+}
+
+.debugger {
+  background: grey;
+  flex-grow: 1;
+  width: 100%;
+}
+
+.fileInput {
+  padding: 0.2rem;
+
+  & label {
+    display: flex;
+    flex-flow: row nowrap;
+    justify-content: space-between;
+    align-items: center;
+    color: white;
+
+    & img {
+      margin-right: 0.5rem;
+    }
+  }
+
+  & input[type="file"] {
+    display: none;
+  }
+}
