@@ -1,6 +1,6 @@
 .App {
   text-align: center;
-  background: #222233;
+  background: #171721;
   display: flex;
   flex-flow: column nowrap;
   justify-content: flex-start;
@@ -17,7 +17,7 @@
   align-items: center;
   height: 2rem;
   width: 100%;
-  background: #111122;
+  background: #222233;
 }
 
 .body {
@@ -42,12 +42,12 @@
   overflow-y: scroll;
 
   & .margin {
-    padding: 0 1rem;
     min-height: 100%;
     background: #111111;
     color: #777;
 
     & .line {
+      padding: 0 1rem;
       height: 1.3rem;
       display: flex;
       flex-flow: row nowrap;
@@ -56,6 +56,11 @@
 
       &.active {
         color: white;
+      }
+
+      &.pcPosition {
+        color: black;
+        background-color: #ddff00;
       }
     }
   }
@@ -107,26 +112,83 @@
 }
 
 .debugger {
-  background: grey;
+  background: #0f0f15;
   flex-grow: 1;
   width: 100%;
+  box-sizing: border-box;
+  padding: 1rem;
+
+  & h1 {
+    text-align: left;
+    font-weight: 600;
+    font-size: 1.1rem;
+    margin: 0;
+    color: #bbb;
+  }
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-column-gap: 0.2rem;
+  grid-row-gap: 0.2rem;
+  font-family: monospace;
+  color: #ddd;
+
+  & .cell {
+    display: flex;
+    flex-flow: row nowrap;
+    justify-content: flex-start;
+    align-items: center;
+    background-color: #333;
+
+    & dt,
+    & dd {
+      margin: 0;
+      padding: 0.2rem 0.5rem;
+    }
+
+    & dt {
+      background-color: #222;
+      width: 1.2rem;
+    }
+
+    & dd {
+      flex-grow: 1;
+    }
+  }
+}
+
+.emptyStack {
+  font-family: sans;
+  font-size: 0.8rem;
+  text-align: left;
+  font-style: italic;
+}
+
+.button {
+  padding: 0.2rem 0.8rem 0.2rem 0.7rem;
+  display: flex;
+  flex-flow: row nowrap;
+  justify-content: space-between;
+  align-items: center;
+  color: white;
+
+  &:hover {
+    cursor: pointer;
+    background-color: #333355;
+  }
+
+  &:active {
+    background-color: #444466;
+  }
+
+  & img {
+    margin-right: 0.5rem;
+  }
 }
 
 .fileInput {
-  padding: 0.2rem;
-
-  & label {
-    display: flex;
-    flex-flow: row nowrap;
-    justify-content: space-between;
-    align-items: center;
-    color: white;
-
-    & img {
-      margin-right: 0.5rem;
-    }
-  }
-
   & input[type="file"] {
     display: none;
   }

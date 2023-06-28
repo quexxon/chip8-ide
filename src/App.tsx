@@ -4,6 +4,7 @@ import { batch, createEffect, on, onMount, JSX, For } from "solid-js";
 import { createStore } from "solid-js/store";
 
 import cassetteUrl from "./assets/cassette-tape.svg";
+import resetUrl from "./assets/reset.svg";
 
 interface Chip8State {
   keys: Array<boolean>;
@@ -47,7 +48,7 @@ interface AudioControl {
   stop: () => void;
 }
 
-const CPU_SPEED = 700;
+const CPU_SPEED = 600;
 const SIXTY_HZ_MS = 1000 / 60;
 const KEYS = new Map([
   ["Digit1", 0x1],
@@ -283,6 +284,22 @@ const getOpcodeMnemonic = (opcode: number): string => {
   return "";
 };
 
+interface ButtonProps {
+  iconUrl: string;
+  label: string;
+  for?: string;
+  onClick?: () => void;
+}
+
+const Button: Component<ButtonProps> = (props) => {
+  return (
+    <label class={styles.button} for={props.for} onClick={props.onClick}>
+      <img src={props.iconUrl} />
+      {props.label}
+    </label>
+  );
+};
+
 const FileInput: Component = () => {
   const handleOpen: JSX.ChangeEventHandlerUnion<HTMLInputElement, Event> = (
     evt
@@ -305,10 +322,7 @@ const FileInput: Component = () => {
 
   return (
     <div class={styles.fileInput}>
-      <label for="load_rom">
-        <img src={cassetteUrl} />
-        Load
-      </label>
+      <Button label="Load" for="load_rom" iconUrl={cassetteUrl} />
       <input
         type="file"
         id="load_rom"
@@ -321,9 +335,17 @@ const FileInput: Component = () => {
 };
 
 const Header: Component = () => {
+  const handleReset = () => {
+    Chip8.reset();
+    if (state.rom) {
+      Chip8.loadRom(state.rom);
+    }
+  };
+
   return (
     <div class={styles.header}>
       <FileInput />
+      <Button label="Reset" iconUrl={resetUrl} onClick={handleReset} />
     </div>
   );
 };
@@ -355,6 +377,8 @@ const Editor: Component = () => {
               classList={{
                 [styles.line]: true,
                 [styles.active]: i() === state.lineNumber,
+                [styles.pcPosition]:
+                  i() * 2 + 0x200 === state.chip8.programCounter,
               }}
             >
               {(i() * 2 + 0x200).toString(16).padStart(4, "0").toUpperCase()}
@@ -388,13 +412,46 @@ const Editor: Component = () => {
 
 const Debugger: Component = () => {
   return (
-    <div>
+    <div class={styles.debugger}>
+      <section>
+        <h1>State</h1>
+        <dl class={styles.grid}>
+          <div class={styles.cell}>
+            <dt>PC</dt>
+            <dd>
+              #
+              {state.chip8.programCounter
+                .toString(16)
+                .padStart(4, "0")
+                .toUpperCase()}
+            </dd>
+          </div>
+          <div class={styles.cell}>
+            <dt>I</dt>
+            <dd>
+              #
+              {state.chip8.indexRegister
+                .toString(16)
+                .padStart(4, "0")
+                .toUpperCase()}
+            </dd>
+          </div>
+          <div class={styles.cell}>
+            <dt>DT</dt>
+            <dd>{state.chip8.delayTimer.toString().padStart(3, "0")}</dd>
+          </div>
+          <div class={styles.cell}>
+            <dt>ST</dt>
+            <dd>{state.chip8.soundTimer.toString().padStart(3, "0")}</dd>
+          </div>
+        </dl>
+      </section>
       <section>
         <h1>Registers</h1>
-        <dl class={styles.debugger}>
+        <dl class={styles.grid}>
           <For each={state.chip8.registers}>
             {(value, index) => (
-              <div>
+              <div class={styles.cell}>
                 <dt>V{index().toString(16).toUpperCase()}</dt>
                 <dd>
                   <span>{value.toString().padStart(3, "0")}</span>{" "}
@@ -402,6 +459,30 @@ const Debugger: Component = () => {
                     #{value.toString(16).toUpperCase().padStart(2, "0")}
                   </span>{" "}
                   <span>{value.toString(2).padStart(8, "0")}</span>
+                </dd>
+              </div>
+            )}
+          </For>
+        </dl>
+      </section>
+      <section>
+        <h1>Stack</h1>
+        <dl class={styles.grid}>
+          <For
+            each={state.chip8.stack}
+            fallback={
+              <div class={styles.emptyStack}>
+                &mdash;&nbsp;Empty&nbsp;&mdash;
+              </div>
+            }
+          >
+            {(value, index) => (
+              <div class={styles.cell}>
+                <dt>{index().toString(16).padStart(2, "0").toUpperCase()}</dt>
+                <dd>
+                  <span>
+                    #{value.toString(16).toUpperCase().padStart(2, "0")}
+                  </span>
                 </dd>
               </div>
             )}
