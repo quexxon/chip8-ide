@@ -308,3 +308,27 @@ export function keyUp(key: u8): void {
 export function setVBlank(): void {
   VBLANK = true
 }
+
+export function getKeys(): StaticArray<bool> {
+  return KEYS
+}
+
+export function getRam(): Uint8Array {
+  return RAM
+}
+
+export function getRegisters(): StaticArray<u8> {
+  return REG
+}
+
+export function getStack(): Array<u16> {
+  return STACK
+}
+
+export function getProgramCounter(): u16 {
+  return PC
+}
+
+export function getIndexRegister(): u16 {
+  return I
+}

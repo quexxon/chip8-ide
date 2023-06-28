@@ -1,34 +1,46 @@
 import type { Component } from "solid-js";
 
-import { createEffect, on, onMount, JSX, For } from "solid-js";
+import { batch, createEffect, on, onMount, JSX, For } from "solid-js";
 import { createStore } from "solid-js/store";
 
 import cassetteUrl from "./assets/cassette-tape.svg";
+
+interface Chip8State {
+  keys: Array<boolean>;
+  ram: Uint8Array;
+  registers: Array<number>;
+  stack: Array<number>;
+  programCounter: number;
+  indexRegister: number;
+  delayTimer: number;
+  soundTimer: number;
+}
 
 interface AppState {
   rom?: Uint8Array;
   editorBuffer: string[];
   lineNumber: number;
+  chip8: Chip8State;
 }
 
 const [state, setState] = createStore<AppState>({
   rom: undefined,
   editorBuffer: [""],
   lineNumber: 0,
+  chip8: {
+    keys: Array(16).fill(false),
+    ram: new Uint8Array(4096),
+    registers: Array(16).fill(0),
+    stack: [],
+    programCounter: 0x200,
+    indexRegister: 0,
+    delayTimer: 0,
+    soundTimer: 0,
+  },
 });
 
 import styles from "./App.module.css";
-import {
-  reset,
-  tick,
-  decDelayTimer,
-  decSoundTimer,
-  getDisplayBitmap,
-  keyUp,
-  keyDown,
-  loadRom,
-  setVBlank,
-} from "./chip8-wasm/build/release";
+import * as Chip8 from "./chip8-wasm/build/release";
 
 interface AudioControl {
   start: () => void;
@@ -105,22 +117,34 @@ const createMainLoop = (
         if (!IDLE) {
           let nCycles = Math.round(CPU_SPEED / 60);
           for (let i = 0; i < nCycles; i++) {
-            IDLE = tick();
+            IDLE = Chip8.tick();
+            batch(() => {
+              setState("chip8", "keys", Chip8.getKeys());
+              setState("chip8", "ram", Chip8.getRam());
+              setState("chip8", "registers", Chip8.getRegisters());
+              setState("chip8", "stack", Chip8.getStack());
+              setState("chip8", "programCounter", Chip8.getProgramCounter());
+              setState("chip8", "indexRegister", Chip8.getIndexRegister());
+            });
             if (IDLE) break;
           }
         }
 
-        decDelayTimer();
-        const st = decSoundTimer();
+        const dt = Chip8.decDelayTimer();
+        const st = Chip8.decSoundTimer();
+        batch(() => {
+          setState("chip8", "delayTimer", dt);
+          setState("chip8", "soundTimer", st);
+        });
         if (audio !== undefined) {
           st > 0 ? audio.start() : audio.stop();
         }
-        setVBlank();
+        Chip8.setVBlank();
       }
       elapsed %= SIXTY_HZ_MS;
     }
 
-    ctx.putImageData(new ImageData(getDisplayBitmap(), 64), 0, 0);
+    ctx.putImageData(new ImageData(Chip8.getDisplayBitmap(), 64), 0, 0);
 
     window.requestAnimationFrame(loop);
   };
@@ -142,14 +166,14 @@ const init = async (canvas: HTMLCanvasElement) => {
     }
     const key = KEYS.get(e.code);
     if (key !== undefined && !e.repeat) {
-      keyDown(key);
+      Chip8.keyDown(key);
     }
   });
 
   document.addEventListener("keyup", (e) => {
     const key = KEYS.get(e.code);
     if (key !== undefined) {
-      keyUp(key);
+      Chip8.keyUp(key);
     }
   });
 
@@ -362,6 +386,32 @@ const Editor: Component = () => {
   );
 };
 
+const Debugger: Component = () => {
+  return (
+    <div>
+      <section>
+        <h1>Registers</h1>
+        <dl class={styles.debugger}>
+          <For each={state.chip8.registers}>
+            {(value, index) => (
+              <div>
+                <dt>V{index().toString(16).toUpperCase()}</dt>
+                <dd>
+                  <span>{value.toString().padStart(3, "0")}</span>{" "}
+                  <span>
+                    #{value.toString(16).toUpperCase().padStart(2, "0")}
+                  </span>{" "}
+                  <span>{value.toString(2).padStart(8, "0")}</span>
+                </dd>
+              </div>
+            )}
+          </For>
+        </dl>
+      </section>
+    </div>
+  );
+};
+
 const App: Component = () => {
   let canvas: HTMLCanvasElement | undefined;
 
@@ -378,8 +428,8 @@ const App: Component = () => {
       () => state.rom,
       (rom) => {
         if (rom) {
-          reset();
-          loadRom(rom);
+          Chip8.reset();
+          Chip8.loadRom(rom);
         }
       },
       { defer: true }
@@ -395,7 +445,7 @@ const App: Component = () => {
           <div class={styles.display}>
             <canvas ref={canvas} width="64" height="32" />
           </div>
-          <div class={styles.debugger}></div>
+          <Debugger />
         </div>
       </div>
     </div>
