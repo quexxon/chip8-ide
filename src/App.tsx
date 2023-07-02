@@ -1,10 +1,20 @@
 import type { Component } from "solid-js";
 
-import { batch, createEffect, on, onMount, JSX, For } from "solid-js";
+import {
+  batch,
+  untrack,
+  createEffect,
+  on,
+  onMount,
+  JSX,
+  For,
+  Show,
+} from "solid-js";
 import { createStore } from "solid-js/store";
 
 import cassetteUrl from "./assets/cassette-tape.svg";
 import resetUrl from "./assets/reset.svg";
+import debugUrl from "./assets/debug.svg";
 
 interface Chip8State {
   keys: Array<boolean>;
@@ -15,29 +25,36 @@ interface Chip8State {
   indexRegister: number;
   delayTimer: number;
   soundTimer: number;
+  isIdle: boolean;
 }
 
 interface AppState {
+  debugEnabled: boolean;
+  cycle: number;
   rom?: Uint8Array;
   editorBuffer: string[];
   lineNumber: number;
   chip8: Chip8State;
 }
 
+const initialChip8State = {
+  keys: Array(16).fill(false),
+  ram: new Uint8Array(4096),
+  registers: Array(16).fill(0),
+  stack: [],
+  programCounter: 0x200,
+  indexRegister: 0,
+  delayTimer: 0,
+  soundTimer: 0,
+  isIdle: false,
+};
+
 const [state, setState] = createStore<AppState>({
-  rom: undefined,
+  debugEnabled: false,
+  cycle: 0,
   editorBuffer: [""],
   lineNumber: 0,
-  chip8: {
-    keys: Array(16).fill(false),
-    ram: new Uint8Array(4096),
-    registers: Array(16).fill(0),
-    stack: [],
-    programCounter: 0x200,
-    indexRegister: 0,
-    delayTimer: 0,
-    soundTimer: 0,
-  },
+  chip8: initialChip8State,
 });
 
 import styles from "./App.module.css";
@@ -48,8 +65,8 @@ interface AudioControl {
   stop: () => void;
 }
 
-const CPU_SPEED = 600;
-const SIXTY_HZ_MS = 1000 / 60;
+const FPS = 1000 / 60; // Frames per second
+const CPF = 10; // Cycles per frame
 const KEYS = new Map([
   ["Digit1", 0x1],
   ["Digit2", 0x2],
@@ -68,7 +85,6 @@ const KEYS = new Map([
   ["KeyC", 0xb],
   ["KeyV", 0xf],
 ]);
-let IDLE = false;
 let AUDIO_ACTIVE = false;
 
 let audio: AudioControl | undefined;
@@ -113,36 +129,26 @@ const createMainLoop = (
     }
     previousTimestamp = timestamp;
 
-    if (elapsed >= SIXTY_HZ_MS) {
-      for (let i = 0; i < Math.floor(elapsed / SIXTY_HZ_MS); i++) {
-        if (!IDLE) {
-          let nCycles = Math.round(CPU_SPEED / 60);
-          for (let i = 0; i < nCycles; i++) {
-            IDLE = Chip8.tick();
-            batch(() => {
-              setState("chip8", "keys", Chip8.getKeys());
-              setState("chip8", "ram", Chip8.getRam());
-              setState("chip8", "registers", Chip8.getRegisters());
-              setState("chip8", "stack", Chip8.getStack());
-              setState("chip8", "programCounter", Chip8.getProgramCounter());
-              setState("chip8", "indexRegister", Chip8.getIndexRegister());
-            });
-            if (IDLE) break;
+    if (state.debugEnabled === false) {
+      if (elapsed >= FPS) {
+        for (let i = 0; i < Math.floor(elapsed / FPS); i++) {
+          if (!untrack(() => state.chip8.isIdle)) {
+            for (let i = 0; i < CPF; i++) {
+              const isIdle = Chip8.tick();
+              setState("chip8", "isIdle", isIdle);
+              if (isIdle) break;
+            }
           }
-        }
 
-        const dt = Chip8.decDelayTimer();
-        const st = Chip8.decSoundTimer();
-        batch(() => {
-          setState("chip8", "delayTimer", dt);
-          setState("chip8", "soundTimer", st);
-        });
-        if (audio !== undefined) {
-          st > 0 ? audio.start() : audio.stop();
+          Chip8.decDelayTimer();
+          const st = Chip8.decSoundTimer();
+          if (audio !== undefined) {
+            st > 0 ? audio.start() : audio.stop();
+          }
+          Chip8.setVBlank();
         }
-        Chip8.setVBlank();
+        elapsed %= FPS;
       }
-      elapsed %= SIXTY_HZ_MS;
     }
 
     ctx.putImageData(new ImageData(Chip8.getDisplayBitmap(), 64), 0, 0);
@@ -151,6 +157,48 @@ const createMainLoop = (
   };
 
   return loop;
+};
+
+const tick = (): boolean => {
+  const isIdle = Chip8.tick();
+  batch(() => {
+    setState("chip8", "isIdle", isIdle);
+    setState("chip8", "keys", Chip8.getKeys());
+    setState("chip8", "ram", Chip8.getRam());
+    setState("chip8", "registers", Chip8.getRegisters());
+    setState("chip8", "stack", Chip8.getStack());
+    setState("chip8", "programCounter", Chip8.getProgramCounter());
+    setState("chip8", "indexRegister", Chip8.getIndexRegister());
+  });
+  return isIdle;
+};
+
+const singleStep = (): void => {
+  if (!untrack(() => state.debugEnabled)) return;
+
+  batch(() => {
+    if (!untrack(() => state.chip8.isIdle)) {
+      tick();
+      // Automatically set VBlank in single step to avoid no-op
+      Chip8.setVBlank();
+    }
+
+    let cycle = untrack(() => state.cycle);
+    cycle += 1;
+
+    if (cycle === CPF) {
+      cycle = 0;
+      const dt = Chip8.decDelayTimer();
+      const st = Chip8.decSoundTimer();
+      setState("chip8", "delayTimer", dt);
+      setState("chip8", "soundTimer", st);
+      if (audio !== undefined) {
+        st > 0 ? audio.start() : audio.stop();
+      }
+    }
+
+    setState("cycle", cycle);
+  });
 };
 
 const init = async (canvas: HTMLCanvasElement) => {
@@ -168,6 +216,8 @@ const init = async (canvas: HTMLCanvasElement) => {
     const key = KEYS.get(e.code);
     if (key !== undefined && !e.repeat) {
       Chip8.keyDown(key);
+    } else if (e.code === "Space") {
+      singleStep();
     }
   });
 
@@ -179,6 +229,25 @@ const init = async (canvas: HTMLCanvasElement) => {
   });
 
   window.requestAnimationFrame(createMainLoop(ctx));
+};
+
+const reset = (): void => {
+  Chip8.reset();
+  batch(() => {
+    setState("cycle", 0);
+    setState("chip8", "isIdle", false);
+    setState("chip8", "keys", Chip8.getKeys());
+    setState("chip8", "ram", Chip8.getRam());
+    setState("chip8", "registers", Chip8.getRegisters());
+    setState("chip8", "stack", Chip8.getStack());
+    setState("chip8", "programCounter", Chip8.getProgramCounter());
+    setState("chip8", "indexRegister", Chip8.getIndexRegister());
+    setState("chip8", "delayTimer", 0);
+    setState("chip8", "soundTimer", 0);
+  });
+  if (state.rom) {
+    Chip8.loadRom(state.rom);
+  }
 };
 
 const getOpcodeMnemonic = (opcode: number): string => {
@@ -287,13 +356,21 @@ const getOpcodeMnemonic = (opcode: number): string => {
 interface ButtonProps {
   iconUrl: string;
   label: string;
+  active?: boolean;
   for?: string;
   onClick?: () => void;
 }
 
 const Button: Component<ButtonProps> = (props) => {
   return (
-    <label class={styles.button} for={props.for} onClick={props.onClick}>
+    <label
+      classList={{
+        [styles.button]: true,
+        [styles.active]: props.active ?? false,
+      }}
+      for={props.for}
+      onClick={props.onClick}
+    >
       <img src={props.iconUrl} />
       {props.label}
     </label>
@@ -335,17 +412,20 @@ const FileInput: Component = () => {
 };
 
 const Header: Component = () => {
-  const handleReset = () => {
-    Chip8.reset();
-    if (state.rom) {
-      Chip8.loadRom(state.rom);
-    }
+  const toggleDebug = () => {
+    setState("debugEnabled", (isEnabled) => !isEnabled);
   };
 
   return (
     <div class={styles.header}>
       <FileInput />
-      <Button label="Reset" iconUrl={resetUrl} onClick={handleReset} />
+      <Button label="Reset" iconUrl={resetUrl} onClick={reset} />
+      <Button
+        label="Debug"
+        iconUrl={debugUrl}
+        active={state.debugEnabled}
+        onClick={toggleDebug}
+      />
     </div>
   );
 };
@@ -378,6 +458,7 @@ const Editor: Component = () => {
                 [styles.line]: true,
                 [styles.active]: i() === state.lineNumber,
                 [styles.pcPosition]:
+                  state.debugEnabled &&
                   i() * 2 + 0x200 === state.chip8.programCounter,
               }}
             >
@@ -444,6 +525,14 @@ const Debugger: Component = () => {
             <dt>ST</dt>
             <dd>{state.chip8.soundTimer.toString().padStart(3, "0")}</dd>
           </div>
+          <div class={styles.cell}>
+            <dt>CPF</dt>
+            <dd>{CPF.toString().padStart(2, "0")}</dd>
+          </div>
+          <div class={styles.cell}>
+            <dt>CYC</dt>
+            <dd>{state.cycle.toString().padStart(2, "0")}</dd>
+          </div>
         </dl>
       </section>
       <section>
@@ -509,8 +598,7 @@ const App: Component = () => {
       () => state.rom,
       (rom) => {
         if (rom) {
-          Chip8.reset();
-          Chip8.loadRom(rom);
+          reset();
         }
       },
       { defer: true }
@@ -526,7 +614,9 @@ const App: Component = () => {
           <div class={styles.display}>
             <canvas ref={canvas} width="64" height="32" />
           </div>
-          <Debugger />
+          <Show when={state.debugEnabled}>
+            <Debugger />
+          </Show>
         </div>
       </div>
     </div>
