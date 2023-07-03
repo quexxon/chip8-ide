@@ -120,7 +120,7 @@
   flex-grow: 1;
   width: 100%;
   box-sizing: border-box;
-  padding: 1rem;
+  max-height: 50vh;
 
   & h1 {
     text-align: left;
@@ -128,6 +128,70 @@
     font-size: 1.1rem;
     margin: 0;
     color: #bbb;
+  }
+
+  & .tabs {
+    height: 2rem;
+    display: flex;
+    flex-flow: row nowrap;
+    justify-content: flex-start;
+    align-items: center;
+    color: #bbb;
+    background: #2f2f2f;
+
+    & .tab {
+      padding: 0.5rem 1rem;
+
+      &.active {
+        background: #0f0f15;
+      }
+
+      &:hover {
+        cursor: pointer;
+      }
+    }
+  }
+
+  & .monitor {
+    padding: 1rem;
+  }
+}
+
+.clickable:hover {
+  cursor: pointer;
+}
+
+.ram {
+  display: flex;
+  flex-flow: row nowrap;
+  justify-content: flex-start;
+  align-items: flex-start;
+  margin-left: 1rem;
+
+  & .ramListing {
+    display: flex;
+    flex-flow: row wrap;
+    justify-content: flex-start;
+    align-items: flex-start;
+    font-family: monospace;
+    color: #ddd;
+    flex-grow: 1;
+    height: calc(50vh - 2rem);
+    overflow-y: scroll;
+
+    & .address {
+      padding: 0.2rem 0.5rem;
+
+      &.pcPointer {
+        background-color: #ddff00;
+        color: black;
+      }
+
+      &.irPointer {
+        background-color: #ff66dd;
+        color: black;
+      }
+    }
   }
 }
 
