@@ -44,6 +44,7 @@ const FONT = [
 export function reset(): void {
   DISPLAY.fill(0)
   KEYS.fill(false)
+  RAM.fill(0)
   RAM.set(FONT, FONT_ADDR)
   REG.fill(0)
   STACK.length = 0
