@@ -1,4 +1,4 @@
-import type { Component, ParentComponent } from "solid-js";
+import type { Component } from "solid-js";
 
 import {
   batch,
@@ -528,7 +528,7 @@ const Debugger: Component = () => {
             [styles.tab]: true,
             [styles.active]: state.debuggerTab === DebuggerTab.monitor,
           }}
-          onClick={() => setState("debuggerTab", DebuggerTab.monitor)}
+          onPointerDown={() => setState("debuggerTab", DebuggerTab.monitor)}
         >
           Monitor
         </span>
@@ -537,145 +537,149 @@ const Debugger: Component = () => {
             [styles.tab]: true,
             [styles.active]: state.debuggerTab === DebuggerTab.ram,
           }}
-          onClick={() => setState("debuggerTab", DebuggerTab.ram)}
+          onPointerDown={() => setState("debuggerTab", DebuggerTab.ram)}
         >
           RAM
         </span>
       </nav>
-      <Show when={state.debuggerTab === DebuggerTab.monitor}>
-        <div class={styles.monitor}>
-          <section>
-            <h1>State</h1>
-            <dl class={styles.grid}>
-              <div
-                classList={{ [styles.cell]: true, [styles.clickable]: true }}
-                onClick={() => {
-                  setState("debuggerTab", DebuggerTab.ram);
-                  const index = untrack(() => state.chip8.programCounter);
-                  const node = ramListing?.children[index];
-                  if (node) {
-                    node.scrollIntoView(true);
-                  }
-                }}
-              >
-                <dt>PC</dt>
-                <dd>
-                  #
-                  {state.chip8.programCounter
-                    .toString(16)
-                    .padStart(4, "0")
-                    .toUpperCase()}
-                </dd>
-              </div>
-              <div
-                classList={{ [styles.cell]: true, [styles.clickable]: true }}
-                onClick={() => {
-                  setState("debuggerTab", DebuggerTab.ram);
-                  const index = untrack(() => state.chip8.indexRegister);
-                  const node = ramListing?.children[index];
-                  if (node) {
-                    node.scrollIntoView(true);
-                  }
-                }}
-              >
-                <dt>I</dt>
-                <dd>
-                  #
-                  {state.chip8.indexRegister
-                    .toString(16)
-                    .padStart(4, "0")
-                    .toUpperCase()}
-                </dd>
-              </div>
-              <div class={styles.cell}>
-                <dt>DT</dt>
-                <dd>{state.chip8.delayTimer.toString().padStart(3, "0")}</dd>
-              </div>
-              <div class={styles.cell}>
-                <dt>ST</dt>
-                <dd>{state.chip8.soundTimer.toString().padStart(3, "0")}</dd>
-              </div>
-              <div class={styles.cell}>
-                <dt>CPF</dt>
-                <dd>{CPF.toString().padStart(2, "0")}</dd>
-              </div>
-              <div class={styles.cell}>
-                <dt>CYC</dt>
-                <dd>{state.cycle.toString().padStart(2, "0")}</dd>
-              </div>
-            </dl>
-          </section>
-          <section>
-            <h1>Registers</h1>
-            <dl class={styles.grid}>
-              <For each={state.chip8.registers}>
-                {(value, index) => (
-                  <div class={styles.cell}>
-                    <dt>V{index().toString(16).toUpperCase()}</dt>
-                    <dd>
-                      <span>{value.toString().padStart(3, "0")}</span>{" "}
-                      <span>
-                        #{value.toString(16).toUpperCase().padStart(2, "0")}
-                      </span>{" "}
-                      <span>{value.toString(2).padStart(8, "0")}</span>
-                    </dd>
-                  </div>
-                )}
-              </For>
-            </dl>
-          </section>
-          <section>
-            <h1>Stack</h1>
-            <dl class={styles.grid}>
-              <For
-                each={state.chip8.stack}
-                fallback={
-                  <div class={styles.emptyStack}>
-                    &mdash;&nbsp;Empty&nbsp;&mdash;
-                  </div>
+      <div
+        classList={{
+          [styles.monitor]: true,
+          [styles.hidden]: state.debuggerTab !== DebuggerTab.monitor,
+        }}
+      >
+        <section>
+          <h1>State</h1>
+          <dl class={styles.grid}>
+            <div
+              classList={{ [styles.cell]: true, [styles.clickable]: true }}
+              onPointerDown={() => {
+                setState("debuggerTab", DebuggerTab.ram);
+                const index = state.chip8.programCounter;
+                const node = ramListing?.children[index];
+                if (node) {
+                  node.scrollIntoView(true);
                 }
-              >
-                {(value, index) => (
-                  <div class={styles.cell}>
-                    <dt>
-                      {index().toString(16).padStart(2, "0").toUpperCase()}
-                    </dt>
-                    <dd>
-                      <span>
-                        #{value.toString(16).toUpperCase().padStart(2, "0")}
-                      </span>
-                    </dd>
-                  </div>
-                )}
-              </For>
-            </dl>
-          </section>
-        </div>
-      </Show>
-      <Show when={state.debuggerTab === DebuggerTab.ram}>
-        <div class={styles.ram}>
-          <div class={styles.margin}></div>
-          <div class={styles.ramListing} ref={ramListing}>
-            <For each={[...state.chip8.ram]}>
-              {(value, index) => {
-                return (
-                  <span
-                    classList={{
-                      [styles.address]: true,
-                      [styles.pcPointer]:
-                        index() === state.chip8.programCounter ||
-                        index() - 1 === state.chip8.programCounter,
-                      [styles.irPointer]: index() === state.chip8.indexRegister,
-                    }}
-                  >
-                    {value.toString(16).toUpperCase().padStart(2, "0")}
-                  </span>
-                );
               }}
+            >
+              <dt>PC</dt>
+              <dd>
+                #
+                {state.chip8.programCounter
+                  .toString(16)
+                  .padStart(4, "0")
+                  .toUpperCase()}
+              </dd>
+            </div>
+            <div
+              classList={{ [styles.cell]: true, [styles.clickable]: true }}
+              onPointerDown={() => {
+                setState("debuggerTab", DebuggerTab.ram);
+                const index = state.chip8.indexRegister;
+                const node = ramListing?.children[index];
+                if (node) {
+                  node.scrollIntoView(true);
+                }
+              }}
+            >
+              <dt>I</dt>
+              <dd>
+                #
+                {state.chip8.indexRegister
+                  .toString(16)
+                  .padStart(4, "0")
+                  .toUpperCase()}
+              </dd>
+            </div>
+            <div class={styles.cell}>
+              <dt>DT</dt>
+              <dd>{state.chip8.delayTimer.toString().padStart(3, "0")}</dd>
+            </div>
+            <div class={styles.cell}>
+              <dt>ST</dt>
+              <dd>{state.chip8.soundTimer.toString().padStart(3, "0")}</dd>
+            </div>
+            <div class={styles.cell}>
+              <dt>CPF</dt>
+              <dd>{CPF.toString().padStart(2, "0")}</dd>
+            </div>
+            <div class={styles.cell}>
+              <dt>CYC</dt>
+              <dd>{state.cycle.toString().padStart(2, "0")}</dd>
+            </div>
+          </dl>
+        </section>
+        <section>
+          <h1>Registers</h1>
+          <dl class={styles.grid}>
+            <For each={state.chip8.registers}>
+              {(value, index) => (
+                <div class={styles.cell}>
+                  <dt>V{index().toString(16).toUpperCase()}</dt>
+                  <dd>
+                    <span>{value.toString().padStart(3, "0")}</span>{" "}
+                    <span>
+                      #{value.toString(16).toUpperCase().padStart(2, "0")}
+                    </span>{" "}
+                    <span>{value.toString(2).padStart(8, "0")}</span>
+                  </dd>
+                </div>
+              )}
             </For>
-          </div>
+          </dl>
+        </section>
+        <section>
+          <h1>Stack</h1>
+          <dl class={styles.grid}>
+            <For
+              each={state.chip8.stack}
+              fallback={
+                <div class={styles.emptyStack}>
+                  &mdash;&nbsp;Empty&nbsp;&mdash;
+                </div>
+              }
+            >
+              {(value, index) => (
+                <div class={styles.cell}>
+                  <dt>{index().toString(16).padStart(2, "0").toUpperCase()}</dt>
+                  <dd>
+                    <span>
+                      #{value.toString(16).toUpperCase().padStart(2, "0")}
+                    </span>
+                  </dd>
+                </div>
+              )}
+            </For>
+          </dl>
+        </section>
+      </div>
+      <div
+        classList={{
+          [styles.ram]: true,
+          [styles.hidden]: state.debuggerTab !== DebuggerTab.ram,
+        }}
+      >
+        <div class={styles.margin}></div>
+        <div class={styles.ramListing} ref={ramListing}>
+          <For each={[...state.chip8.ram]}>
+            {(value, index) => {
+              return (
+                <span
+                  classList={{
+                    [styles.address]: true,
+                    [styles.pcPointer]:
+                      index() === state.chip8.programCounter ||
+                      index() - 1 === state.chip8.programCounter,
+                    [styles.irPointer]: index() === state.chip8.indexRegister,
+                  }}
+                >
+                  {value.toString(16).toUpperCase().padStart(2, "0")}
+                </span>
+              );
+            }}
+          </For>
         </div>
-      </Show>
+      </div>
     </div>
   );
 };

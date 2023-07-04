@@ -152,6 +152,10 @@
     }
   }
 
+  & .hidden {
+    display: none;
+  }
+
   & .monitor {
     padding: 1rem;
   }
