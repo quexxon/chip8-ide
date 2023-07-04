@@ -1,15 +1,15 @@
-import { defineConfig } from 'vite';
-import solidPlugin from 'vite-plugin-solid';
-import assemblyScriptPlugin from 'vite-plugin-assemblyscript-asc'
+import { defineConfig } from "vite";
+import solidPlugin from "vite-plugin-solid";
+import assemblyScriptPlugin from "vite-plugin-assemblyscript-asc";
 
 export default defineConfig({
   assetsInclude: ["**/*.ch8"],
   plugins: [
     {
-    ...assemblyScriptPlugin({
-      projectRoot: 'src/chip8-wasm',
-    }),
-      enforce: 'pre'
+      ...assemblyScriptPlugin({
+        projectRoot: "src/chip8-wasm",
+      }),
+      enforce: "pre",
     },
     solidPlugin(),
   ],
@@ -17,6 +17,6 @@ export default defineConfig({
     port: 3000,
   },
   build: {
-    target: 'esnext',
+    target: "esnext",
   },
 });
