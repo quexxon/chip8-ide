@@ -37,7 +37,7 @@ interface AppState {
   debugEnabled: boolean;
   cycle: number;
   rom?: Uint8Array;
-  editorBuffer: string[];
+  editorBuffer: Uint8Array;
   lineNumber: number;
   debuggerTab: DebuggerTab;
   chip8: Chip8State;
@@ -58,7 +58,7 @@ const initialChip8State = {
 const [state, setState] = createStore<AppState>({
   debugEnabled: false,
   cycle: 0,
-  editorBuffer: [""],
+  editorBuffer: new Uint8Array(),
   lineNumber: 0,
   debuggerTab: DebuggerTab.monitor,
   chip8: initialChip8State,
@@ -176,6 +176,8 @@ const tick = (): boolean => {
     setState("chip8", "stack", Chip8.getStack());
     setState("chip8", "programCounter", Chip8.getProgramCounter());
     setState("chip8", "indexRegister", Chip8.getIndexRegister());
+    setState("chip8", "delayTimer", Chip8.getDelayTimer());
+    setState("chip8", "soundTimer", Chip8.getSoundTimer());
   });
   return isIdle;
 };
@@ -392,14 +394,7 @@ const FileInput: Component = () => {
     const file = evt.currentTarget.files.item(0);
     if (file === null) return;
     file.arrayBuffer().then((buffer) => {
-      const dv = new DataView(buffer);
-      const editorBuffer = [];
-      for (let i = 0; i < dv.byteLength; i += 2) {
-        editorBuffer.push(
-          dv.getUint16(i, false).toString(16).padStart(4, "0").toUpperCase()
-        );
-      }
-      setState("editorBuffer", editorBuffer);
+      setState("editorBuffer", new Uint8Array(buffer));
       setState("rom", new Uint8Array(buffer));
     });
   };
@@ -477,7 +472,7 @@ const Editor: Component = () => {
       }}
     >
       <div class={styles.margin} ref={margin}>
-        <For each={state.editorBuffer}>
+        <For each={[...state.editorBuffer]}>
           {(_, i) => (
             <div
               classList={{
@@ -494,24 +489,33 @@ const Editor: Component = () => {
         </For>
       </div>
       <div class={styles.content}>
-        <For each={state.editorBuffer}>
-          {(line, i) => {
-            return (
+        {(() => {
+          const lines = [];
+
+          const bufferSize = state.editorBuffer.byteLength;
+          const limit = bufferSize % 2 === 0 ? bufferSize : bufferSize + 1;
+          for (let i = 0; i < limit; i += 2) {
+            const ub = state.editorBuffer[i];
+            const lb = state.editorBuffer[i + 1];
+            const word = lb === undefined ? ub : (ub << 8) + lb;
+            lines.push(
               <div
                 classList={{
                   [styles.line]: true,
-                  [styles.active]: state.lineNumber === i(),
+                  [styles.active]: state.lineNumber === i / 2,
                 }}
-                onClick={() => setState("lineNumber", i())}
               >
-                {line}
+                {lb === undefined
+                  ? ub.toString(16).padStart(2, "0")
+                  : word.toString(16).padStart(4, "0")}
                 <span class={styles.mnemonic}>
-                  {line.length > 0 ? getOpcodeMnemonic(parseInt(line, 16)) : ""}
+                  {lb === undefined ? "" : getOpcodeMnemonic(word)}
                 </span>
               </div>
             );
-          }}
-        </For>
+          }
+          return <>{...lines}</>;
+        })()}
       </div>
     </div>
   );

@@ -333,3 +333,11 @@ export function getProgramCounter(): u16 {
 export function getIndexRegister(): u16 {
   return I
 }
+
+export function getDelayTimer(): u8 {
+  return DT
+}
+
+export function getSoundTimer(): u8 {
+  return ST
+}
